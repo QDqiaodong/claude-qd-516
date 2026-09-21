@@ -1,0 +1,245 @@
+:root {
+  /* 主色：芥黄 #f9a825 —— Element Plus 全套明暗梯度 */
+  --el-color-primary: #f9a825;
+  --el-color-primary-light-3: #fbc266;
+  --el-color-primary-light-5: #fcd492;
+  --el-color-primary-light-7: #fde5be;
+  --el-color-primary-light-8: #feeed3;
+  --el-color-primary-light-9: #fef6e9;
+  --el-color-primary-dark-2: #c7861e;
+
+  --el-border-radius-base: 10px;
+  --studio-bg: #fbf7ef;
+  --studio-ink: #3d2f1f;
+  --studio-clay: #b4713c;
+  --studio-line: #eadfcb;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--studio-bg);
+  color: var(--studio-ink);
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.studio-page {
+  padding: 18px 22px 40px;
+}
+
+/* 顶部横向分类条 */
+.catbar {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 0 4px;
+  border-bottom: 1px dashed var(--studio-line);
+  margin-bottom: 14px;
+}
+
+.catbar-item {
+  flex: 0 0 auto;
+  min-width: 116px;
+  padding: 10px 16px;
+  border: 1px solid var(--studio-line);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+}
+
+.catbar-item:hover {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.catbar-item.is-active {
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(249, 168, 37, 0.32);
+}
+
+.catbar-item .cat-sub {
+  display: block;
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.studio-panel {
+  background: #fff;
+  border: 1px solid var(--studio-line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.studio-crumb {
+  margin-bottom: 10px;
+}
+
+.studio-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding-left: 10px;
+  border-left: 4px solid var(--el-color-primary);
+  line-height: 1.1;
+}
+
+.studio-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.studio-hint {
+  font-size: 12px;
+  color: #9a8b76;
+}
+
+/* 窑炉时间轴 */
+.kiln-track {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.kiln-node {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 150px;
+  padding: 12px 14px 12px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--studio-line);
+  background: #fffdf8;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.kiln-node::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  background: var(--studio-line);
+}
+
+.kiln-node:last-child::after {
+  display: none;
+}
+
+.kiln-node:hover {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 4px 14px rgba(249, 168, 37, 0.22);
+}
+
+.kiln-node.is-done {
+  background: var(--el-color-primary-light-9);
+}
+
+.kiln-node.is-current {
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: #fff;
+}
+
+.kiln-node.is-current .kiln-node-desc {
+  opacity: 0.92;
+}
+
+.kiln-node.is-active {
+  outline: 2px solid var(--el-color-primary-dark-2);
+}
+
+.kiln-node-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.kiln-node-desc {
+  font-size: 12px;
+  opacity: 0.72;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.batch-card {
+  border: 1px solid var(--studio-line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.batch-card.is-running {
+  border-left: 5px solid var(--el-color-primary);
+}
+
+.batch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.batch-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.batch-meta {
+  font-size: 12px;
+  color: #8a7b66;
+}
+
+.course-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 10px;
+}
+
+.course-card {
+  flex: 0 0 auto;
+  width: 210px;
+  border: 1px solid var(--studio-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fffdf8;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.course-card:hover {
+  border-color: var(--el-color-primary);
+}
+
+.course-card.is-active {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  box-shadow: 0 4px 14px rgba(249, 168, 37, 0.25);
+}
+
+.course-card-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.course-card-meta {
+  font-size: 12px;
+  color: #8a7b66;
+  line-height: 1.7;
+}
