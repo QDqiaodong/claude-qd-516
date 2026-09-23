@@ -2,6 +2,7 @@ package com.pottery.studio.greenware;
 
 import com.pottery.studio.common.BizException;
 import com.pottery.studio.common.PartialCopy;
+import com.pottery.studio.course.ArtworkRepository;
 import com.pottery.studio.material.Material;
 import com.pottery.studio.material.MaterialRepository;
 import org.springframework.stereotype.Service;
@@ -38,13 +39,16 @@ public class GreenwareService {
     private final GreenwareRepository greenwareRepository;
     private final WorkAreaService workAreaService;
     private final MaterialRepository materialRepository;
+    private final ArtworkRepository artworkRepository;
 
     public GreenwareService(GreenwareRepository greenwareRepository,
                             WorkAreaService workAreaService,
-                            MaterialRepository materialRepository) {
+                            MaterialRepository materialRepository,
+                            ArtworkRepository artworkRepository) {
         this.greenwareRepository = greenwareRepository;
         this.workAreaService = workAreaService;
         this.materialRepository = materialRepository;
+        this.artworkRepository = artworkRepository;
     }
 
     public static String stageLabel(String stage) {
@@ -164,6 +168,10 @@ public class GreenwareService {
         Greenware exist = requireExists(id);
         if (Greenware.FIRING.equals(exist.getStage())) {
             throw new BizException("坯体【" + exist.getCode() + "】正在窑内烧制，不能删除");
+        }
+        if (artworkRepository.existsByGreenwareId(id)) {
+            throw new BizException("坯体【" + exist.getCode()
+                    + "】已登记为学员作品的来源坯体，删除会造成作品来源缺失，不能删除");
         }
         greenwareRepository.delete(exist);
     }

@@ -2,6 +2,7 @@ package com.pottery.studio.material;
 
 import com.pottery.studio.common.BizException;
 import com.pottery.studio.common.PartialCopy;
+import com.pottery.studio.greenware.GreenwareRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +21,14 @@ public class MaterialService {
 
     private final MaterialRepository materialRepository;
     private final MaterialCategoryService categoryService;
+    private final GreenwareRepository greenwareRepository;
 
-    public MaterialService(MaterialRepository materialRepository, MaterialCategoryService categoryService) {
+    public MaterialService(MaterialRepository materialRepository,
+                           MaterialCategoryService categoryService,
+                           GreenwareRepository greenwareRepository) {
         this.materialRepository = materialRepository;
         this.categoryService = categoryService;
+        this.greenwareRepository = greenwareRepository;
     }
 
     public List<Material> list(Long categoryId, String kind) {
@@ -115,6 +120,15 @@ public class MaterialService {
     @Transactional
     public void delete(Long id) {
         Material exist = requireExists(id);
+        // 被坯体引用的材料删除会造成作品来源链缺段，拒绝删除
+        if ("CLAY".equals(exist.getKind()) && greenwareRepository.existsByClayId(id)) {
+            throw new BizException("泥料【" + exist.getName()
+                    + "】已被坯体使用，删除会造成作品泥料来源缺失，不能删除");
+        }
+        if ("GLAZE".equals(exist.getKind()) && greenwareRepository.existsByGlazeId(id)) {
+            throw new BizException("釉料【" + exist.getName()
+                    + "】已被坯体使用，删除会造成作品釉料来源缺失，不能删除");
+        }
         materialRepository.delete(exist);
     }
 

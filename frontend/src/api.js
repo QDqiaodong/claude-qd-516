@@ -5,8 +5,13 @@ const http = axios.create({ baseURL: '/api', timeout: 20000 })
 http.interceptors.response.use(
   (resp) => resp.data,
   (err) => {
-    const msg = err?.response?.data?.message || err.message || '请求失败'
-    return Promise.reject(new Error(msg))
+    const data = err?.response?.data
+    const msg = data?.message || err.message || '请求失败'
+    const error = new Error(msg)
+    // 版本冲突等场景需要拿到服务器返回的附加字段
+    error.status = err?.response?.status
+    error.data = data
+    return Promise.reject(error)
   }
 )
 
@@ -75,10 +80,22 @@ export const courseApi = {
 
 export const artworkApi = {
   list: (params) => unwrap(http.get('/artworks', { params })),
+  get: (id) => unwrap(http.get(`/artworks/${id}`)),
   create: (payload) => unwrap(http.post('/artworks', payload)),
+  update: (id, payload) => unwrap(http.put(`/artworks/${id}`, payload)),
   owner: (id, ownerStatus, consignPrice) =>
     unwrap(http.post(`/artworks/${id}/owner`, null, { params: { ownerStatus, consignPrice } })),
   remove: (id) => unwrap(http.delete(`/artworks/${id}`))
+}
+
+export const certificateApi = {
+  aggregate: (artworkId) => unwrap(http.get(`/artworks/${artworkId}/certificate`)),
+  version: (artworkId, versionNo) =>
+    unwrap(http.get(`/artworks/${artworkId}/certificate/${versionNo}`)),
+  issue: (artworkId, payload) =>
+    unwrap(http.post(`/artworks/${artworkId}/certificate/issue`, payload)),
+  correct: (artworkId, payload) =>
+    unwrap(http.post(`/artworks/${artworkId}/certificate/correct`, payload))
 }
 
 export default http

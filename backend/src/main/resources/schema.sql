@@ -144,6 +144,64 @@ CREATE TABLE artwork (
   UNIQUE KEY uk_aw_code (code)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '学员作品';
 
+-- ---------- 烧成履历凭证（版本化、快照式，append-only） ----------
+-- 只追加新版本：更正时旧版置 SUPERSEDED 保留，绝不更新/删除旧行；
+-- 升级前已登记的作品默认没有凭证，首签时从当前可核实数据生成 V1。
+-- 业务表之间同样不建物理外键（与既有表保持一致），来源缺失由签发核对逻辑识别。
+CREATE TABLE IF NOT EXISTS firing_certificate (
+  id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+  artwork_id       BIGINT       NOT NULL COMMENT '所属作品',
+  version_no       INT          NOT NULL COMMENT '版本号，从 1 开始，只增不改',
+  status           VARCHAR(16)  NOT NULL DEFAULT 'CURRENT' COMMENT 'CURRENT 当前版 / SUPERSEDED 已被更正取代',
+  change_reason    VARCHAR(255) NULL COMMENT '更正原因（V1 首签为空）',
+  issued_by        VARCHAR(32)  NOT NULL COMMENT '签发工作人员',
+
+  -- 签发时刻的作品快照（此后课程/材料/作品资料被修正也不改变本凭证）
+  artwork_code     VARCHAR(32)  NOT NULL COMMENT '作品编号快照',
+  artwork_title    VARCHAR(64)  NOT NULL COMMENT '作品名称快照',
+  student_name     VARCHAR(32)  NOT NULL COMMENT '学员姓名快照',
+  owner_status     VARCHAR(16)  NOT NULL COMMENT '作品归属快照',
+  finished_at      DATETIME     NULL COMMENT '作品完成时间快照',
+
+  -- 来源课程快照
+  course_id        BIGINT       NOT NULL,
+  course_code      VARCHAR(32)  NOT NULL COMMENT '课程编号快照',
+  course_title     VARCHAR(64)  NOT NULL COMMENT '课程名称快照',
+  teacher          VARCHAR(32)  NOT NULL COMMENT '授课老师快照',
+
+  -- 来源坯体 + 泥料/釉料快照
+  greenware_id     BIGINT       NOT NULL,
+  greenware_code   VARCHAR(32)  NOT NULL COMMENT '坯体编号快照',
+  greenware_name   VARCHAR(64)  NOT NULL COMMENT '坯体名称快照',
+  clay_id          BIGINT       NOT NULL,
+  clay_code        VARCHAR(32)  NOT NULL COMMENT '泥料编号快照',
+  clay_name        VARCHAR(64)  NOT NULL COMMENT '泥料名称快照',
+  glaze_id         BIGINT       NULL,
+  glaze_code       VARCHAR(32)  NULL COMMENT '釉料编号快照（素烧坯可无釉）',
+  glaze_name       VARCHAR(64)  NULL COMMENT '釉料名称快照',
+
+  -- 烧成批次 + 窑炉快照（目标/实际温度与时间）
+  firing_batch_id  BIGINT       NOT NULL,
+  batch_no         VARCHAR(32)  NOT NULL COMMENT '批次号快照',
+  kiln_id          BIGINT       NOT NULL,
+  kiln_name        VARCHAR(64)  NOT NULL COMMENT '窑炉名称快照',
+  fire_type        VARCHAR(16)  NOT NULL COMMENT 'BISQUE 素烧 / GLAZE 釉烧 快照',
+  target_temp      INT          NOT NULL COMMENT '目标温度 ℃ 快照',
+  peak_temp        INT          NULL COMMENT '实际峰值温度 ℃ 快照',
+  loaded_at        DATETIME     NULL COMMENT '装窑时间快照',
+  heating_at       DATETIME     NULL COMMENT '升温时间快照',
+  soaking_at       DATETIME     NULL COMMENT '保温时间快照',
+  cooling_at       DATETIME     NULL COMMENT '冷却时间快照',
+  out_at           DATETIME     NULL COMMENT '出窑时间快照',
+
+  issued_at        DATETIME     NOT NULL COMMENT '签发时间',
+  created_at       DATETIME     NULL,
+  updated_at       DATETIME     NULL,
+  UNIQUE KEY uk_fc_art_ver (artwork_id, version_no),
+  KEY idx_fc_artwork (artwork_id),
+  KEY idx_fc_status (artwork_id, status)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '烧成履历凭证（append-only 版本快照）';
+
 -- ================= 种子数据 =================
 
 -- 材料分类树（4 层：陶土类 > 粗陶泥 > 宜兴粗陶）
@@ -233,4 +291,9 @@ INSERT INTO artwork (id, code, title, student_name, course_id, greenware_id, fir
   (4, 'AW-0004', '结晶釉盘', '孙宁',   3, 11, 1, 'SOLD',    520.00, NULL,   '2026-03-23 09:00:00', NOW(), NOW()),
   (5, 'AW-0005', '青花小瓶', '周敏',   3, 12, 1, 'CONSIGN', 460.00, 'S-03', '2026-03-23 15:00:00', NOW(), NOW()),
   (6, 'AW-0006', '手捏小猫', '刘小满', 2, 5,  1, 'TAKEN',   NULL,    NULL,   '2026-03-24 10:00:00', NOW(), NOW()),
-  (7, 'AW-0007', '高白泥碗', '吴桐',   3, 8,  1, 'TAKEN',   NULL,    NULL,   '2026-03-24 16:00:00', NOW(), NOW());
+  (7, 'AW-0007', '高白泥碗', '吴桐',   3, 8,  1, 'TAKEN',   NULL,    NULL,   '2026-03-24 16:00:00', NOW(), NOW()),
+  -- 以下两件为"升级前已登记"的遗留作品：无凭证，照常查看流转；但来源链有问题，凭证核对会分别拦截
+  -- AW-0008：来源坯体 GW-0009 未施釉，却挂到釉烧批次 FB-20260330 —— 坯体/批次关联冲突
+  (8, 'AW-0008', '粗陶杯',   '钱多多', 2, 9,  4, 'TAKEN',   NULL,    NULL,   '2026-03-31 11:00:00', NOW(), NOW()),
+  -- AW-0009：来源坯体 id=999 在坯体台账中查不到 —— 缺少【来源坯体】这段来源
+  (9, 'AW-0009', '旧档茶盏', '郑老伯', 5, 999, 1, 'TAKEN',   NULL,    NULL,   '2026-02-09 10:00:00', NOW(), NOW());

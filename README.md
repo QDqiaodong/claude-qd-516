@@ -34,6 +34,21 @@ chmod +x start.sh && docker compose up -d --build
 | 窑炉与烧成 | `GET /api/firing-batches` |
 | 课程与作品 | `GET /api/courses`、`GET /api/artworks` |
 
+烧成履历凭证（作品完成烧成后签发，版本化、快照式、append-only）：
+
+- `GET /api/artworks/{id}/certificate` —— 凭证聚合：当前版、全部历史版、来源链逐段核对结果、当前资料与快照差异
+- `GET /api/artworks/{id}/certificate/{versionNo}` —— 查看/打印指定版本（含历史版，内容为签发当时快照）
+- `POST /api/artworks/{id}/certificate/issue` —— 首次签发（body：`issuedBy`、`expectedCurrentId`，首签传 null）
+- `POST /api/artworks/{id}/certificate/correct` —— 发起更正，追加新版本（body：`issuedBy`、`reason`、`expectedCurrentId`）
+
+凭证关键规则：
+
+1. **签发前逐段核对来源链**：作品 → 课程 / 坯体 → 泥料（釉料）/ 烧成批次 → 窑炉。来源缺失或坯体批次关联冲突（如未施釉坯体挂到釉烧批次）时拒绝签发，并指出缺的是哪段来源，不生成看似完整的凭证。
+2. **快照留痕**：凭证保存签发当时的作品名称、学员、泥料/釉料、课程、烧成类型、目标/实际温度与各阶段时间；之后业务资料被修正，旧凭证内容不变。
+3. **版本只追加不覆盖**：更正时旧版置 `SUPERSEDED` 保留、新版本成为 `CURRENT`；无差异时拒绝生成新版本。
+4. **并发保护**：签发/更正携带读取时的当前凭证 id（乐观锁）+ 作品行悲观锁；另一名工作人员已更新版本时旧页面请求被拒，提示「凭证版本已变化，请重新读取」，前端详情抽屉同时轮询版本号提示冲突。
+5. **升级前遗留作品**：没有凭证也能照常查看、改归属流转；首签从当前可核实数据生成 V1，不重建历史。
+
 自关联品类树接口：
 
 - `GET /api/material-categories/tree` —— 材料分类整棵树

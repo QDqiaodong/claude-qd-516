@@ -64,6 +64,10 @@ public class Artwork extends BaseEntity {
     @Transient
     private String batchNo;
 
+    /** 当前凭证版本号（列表展示用）；未签发为 null，历史版本不计入 */
+    @Transient
+    private Integer certVersionNo;
+
     public Long getId() {
         return id;
     }
@@ -174,5 +178,13 @@ public class Artwork extends BaseEntity {
 
     public void setBatchNo(String batchNo) {
         this.batchNo = batchNo;
+    }
+
+    public Integer getCertVersionNo() {
+        return certVersionNo;
+    }
+
+    public void setCertVersionNo(Integer certVersionNo) {
+        this.certVersionNo = certVersionNo;
     }
 }

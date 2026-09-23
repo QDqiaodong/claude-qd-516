@@ -12,4 +12,8 @@ public interface GreenwareRepository extends JpaRepository<Greenware, Long> {
     List<Greenware> findByFiringBatchIdOrderByIdAsc(Long firingBatchId);
 
     boolean existsByCode(String code);
+
+    boolean existsByClayId(Long clayId);
+
+    boolean existsByGlazeId(Long glazeId);
 }

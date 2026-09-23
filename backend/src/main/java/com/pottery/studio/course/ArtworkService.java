@@ -1,5 +1,6 @@
 package com.pottery.studio.course;
 
+import com.pottery.studio.certificate.FiringCertificateService;
 import com.pottery.studio.common.BizException;
 import com.pottery.studio.common.PartialCopy;
 import com.pottery.studio.firing.FiringBatch;
@@ -29,15 +30,18 @@ public class ArtworkService {
     private final CourseService courseService;
     private final GreenwareRepository greenwareRepository;
     private final FiringBatchRepository batchRepository;
+    private final FiringCertificateService certificateService;
 
     public ArtworkService(ArtworkRepository artworkRepository,
                           CourseService courseService,
                           GreenwareRepository greenwareRepository,
-                          FiringBatchRepository batchRepository) {
+                          FiringBatchRepository batchRepository,
+                          FiringCertificateService certificateService) {
         this.artworkRepository = artworkRepository;
         this.courseService = courseService;
         this.greenwareRepository = greenwareRepository;
         this.batchRepository = batchRepository;
+        this.certificateService = certificateService;
     }
 
     public static String ownerLabel(String status) {
@@ -91,19 +95,27 @@ public class ArtworkService {
         if (request.getFinishedAt() == null) {
             request.setFinishedAt(LocalDateTime.now());
         }
-        validate(request, null);
+        validateProvenance(request, null);
+        validateOwner(request);
         return decorateOne(artworkRepository.save(request));
     }
 
     @Transactional
     public Artwork update(Long id, Artwork request) {
         Artwork exist = requireExists(id);
+        // 作品名称/学员/归属等资料允许修正；课程、坯体、批次一旦变动需重新做来源链核对
+        boolean sourceMaybeChanged = request.getCourseId() != null
+                || request.getGreenwareId() != null
+                || request.getFiringBatchId() != null;
         PartialCopy.apply(request, exist, "code", "courseTitle", "greenwareCode", "batchNo");
-        validate(exist, id);
+        if (sourceMaybeChanged) {
+            validateProvenance(exist, id);
+        }
+        validateOwner(exist);
         return decorateOne(artworkRepository.save(exist));
     }
 
-    /** 改归属：学员带走 / 留馆寄售 / 已售出 */
+    /** 改归属：学员带走 / 留馆寄售 / 已售出。只校验归属本身，不重新核对来源链（凭证核对独立负责）。 */
     @Transactional
     public Artwork changeOwner(Long id, String ownerStatus, BigDecimal consignPrice) {
         Artwork exist = requireExists(id);
@@ -114,13 +126,17 @@ public class ArtworkService {
         if (consignPrice != null) {
             exist.setConsignPrice(consignPrice);
         }
-        validate(exist, id);
+        validateOwner(exist);
         return decorateOne(artworkRepository.save(exist));
     }
 
     @Transactional
     public void delete(Long id) {
         Artwork exist = requireExists(id);
+        if (certificateService.hasCertificate(id)) {
+            throw new BizException("作品【" + exist.getTitle()
+                    + "】已签发烧成履历凭证，凭证记录需永久留存，不能删除作品");
+        }
         if (Artwork.SOLD.equals(exist.getOwnerStatus())) {
             throw new BizException("作品【" + exist.getTitle() + "】已售出，不能删除");
         }
@@ -137,11 +153,11 @@ public class ArtworkService {
 
     // ---------- 校验规则 ----------
 
-    private void validate(Artwork a, Long excludeId) {
-        if (!OWNER_LABEL.containsKey(a.getOwnerStatus())) {
-            throw new BizException("作品归属只能是 TAKEN（学员带走）、CONSIGN（留馆寄售）或 SOLD（已售出），当前传入【"
-                    + (a.getOwnerStatus() == null ? "空" : a.getOwnerStatus()) + "】");
-        }
+    /**
+     * 来源链强校验，只在"新建作品"和"修正课程/坯体/批次关联"时执行：
+     * 升级前已登记但来源缺失/冲突的遗留作品仍可查看和改归属流转，不被这里追溯拦截。
+     */
+    private void validateProvenance(Artwork a, Long excludeId) {
         Course course = courseService.requireExists(a.getCourseId());
 
         Greenware g = greenwareRepository.findById(a.getGreenwareId())
@@ -174,7 +190,14 @@ public class ArtworkService {
             throw new BizException("课程【" + course.getTitle() + "】已报名 " + course.getEnrolled()
                     + " 人，作品数已达 " + works + " 件，一人一件不能再登记了");
         }
+    }
 
+    /** 归属相关校验（与来源链解耦，遗留作品改归属照常流转） */
+    private void validateOwner(Artwork a) {
+        if (!OWNER_LABEL.containsKey(a.getOwnerStatus())) {
+            throw new BizException("作品归属只能是 TAKEN（学员带走）、CONSIGN（留馆寄售）或 SOLD（已售出），当前传入【"
+                    + (a.getOwnerStatus() == null ? "空" : a.getOwnerStatus()) + "】");
+        }
         if (Artwork.CONSIGN.equals(a.getOwnerStatus())) {
             if (a.getConsignPrice() == null || a.getConsignPrice().compareTo(ZERO) <= 0) {
                 throw new BizException("作品【" + a.getTitle() + "】归属为留馆寄售时必须填写寄售价格且大于 0");
@@ -223,6 +246,7 @@ public class ArtworkService {
             a.setCourseTitle(courseTitles.get(a.getCourseId()));
             a.setGreenwareCode(greenwareCodes.get(a.getGreenwareId()));
             a.setBatchNo(batchNos.get(a.getFiringBatchId()));
+            a.setCertVersionNo(certificateService.currentVersionNo(a.getId()).orElse(null));
         }
         return rows;
     }

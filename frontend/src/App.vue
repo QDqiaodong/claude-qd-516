@@ -1,6 +1,6 @@
 <template>
   <div>
-    <header class="studio-header">
+    <header v-if="!isPrintRoute" class="studio-header">
       <div class="studio-brand">
         <span class="studio-brand-mark">陶</span>
         <span>
@@ -24,17 +24,21 @@
       </nav>
     </header>
 
-    <main class="studio-page">
+    <main :class="isPrintRoute ? 'studio-page-print' : 'studio-page'">
       <router-view />
     </main>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
+
+// 凭证打印页是独立全屏页，不套工坊导航外壳
+const isPrintRoute = computed(() => route.name === 'certificate-print')
 
 const modules = [
   { path: '/materials', name: '泥料釉料台账', sub: '种类 · 存量 · 收缩率' },
@@ -93,5 +97,9 @@ const go = (path) => router.push(path)
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 12px;
+}
+
+.studio-page-print {
+  padding: 0;
 }
 </style>

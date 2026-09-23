@@ -2,6 +2,7 @@ package com.pottery.studio.firing;
 
 import com.pottery.studio.common.BizException;
 import com.pottery.studio.common.PartialCopy;
+import com.pottery.studio.course.ArtworkRepository;
 import com.pottery.studio.greenware.Greenware;
 import com.pottery.studio.greenware.GreenwareRepository;
 import com.pottery.studio.greenware.GreenwareService;
@@ -31,13 +32,16 @@ public class FiringBatchService {
     private final FiringBatchRepository batchRepository;
     private final KilnService kilnService;
     private final GreenwareRepository greenwareRepository;
+    private final ArtworkRepository artworkRepository;
 
     public FiringBatchService(FiringBatchRepository batchRepository,
                               KilnService kilnService,
-                              GreenwareRepository greenwareRepository) {
+                              GreenwareRepository greenwareRepository,
+                              ArtworkRepository artworkRepository) {
         this.batchRepository = batchRepository;
         this.kilnService = kilnService;
         this.greenwareRepository = greenwareRepository;
+        this.artworkRepository = artworkRepository;
     }
 
     public static String stageLabel(String stage) {
@@ -198,6 +202,11 @@ public class FiringBatchService {
         if (!FiringBatch.OUT.equals(exist.getStage())) {
             throw new BizException("批次【" + exist.getBatchNo() + "】还没出窑（当前" + stageLabel(exist.getStage())
                     + "），不能删除");
+        }
+        boolean referenced = artworkRepository.existsByFiringBatchId(id);
+        if (referenced) {
+            throw new BizException("烧成批次【" + exist.getBatchNo()
+                    + "】已被学员作品引用，删除会造成作品烧成来源缺失，不能删除");
         }
         batchRepository.delete(exist);
     }
