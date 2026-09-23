@@ -74,8 +74,17 @@
         </el-table-column>
         <el-table-column prop="consignPrice" label="价格" width="90" />
         <el-table-column prop="shelfNo" label="货架位" width="90" />
-        <el-table-column label="操作" min-width="180">
+        <el-table-column label="烧成履历凭证" width="130">
           <template #default="{ row }">
+            <el-tag v-if="row.certificateVersionNo" type="success" size="small">
+              当前版 V{{ row.certificateVersionNo }}
+            </el-tag>
+            <el-tag v-else type="info" size="small">未签发</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" min-width="230">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openDetail(row)">作品详情/凭证</el-button>
             <el-button link type="primary" @click="changeOwner(row)">改归属</el-button>
             <el-button link type="danger" @click="removeRow(row)">删除</el-button>
           </template>
@@ -125,8 +134,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { courseApi, artworkApi, greenwareApi, firingBatchApi } from '../api'
+
+const router = useRouter()
 
 const courses = ref([])
 const artworks = ref([])
@@ -159,6 +171,10 @@ async function loadArtworks() {
 function selectCourse(id) {
   courseId.value = id
   loadArtworks()
+}
+
+function openDetail(row) {
+  router.push(`/courses/artworks/${row.id}`)
 }
 
 async function enroll(course) {

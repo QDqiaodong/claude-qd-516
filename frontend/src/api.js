@@ -6,7 +6,10 @@ http.interceptors.response.use(
   (resp) => resp.data,
   (err) => {
     const msg = err?.response?.data?.message || err.message || '请求失败'
-    return Promise.reject(new Error(msg))
+    const e = new Error(msg)
+    // 保留 HTTP 状态码：409 表示凭证版本已被他人更新，页面需据此提示重新读取
+    e.status = err?.response?.status || 0
+    return Promise.reject(e)
   }
 )
 
@@ -75,10 +78,26 @@ export const courseApi = {
 
 export const artworkApi = {
   list: (params) => unwrap(http.get('/artworks', { params })),
+  detail: (id) => unwrap(http.get(`/artworks/${id}`)),
   create: (payload) => unwrap(http.post('/artworks', payload)),
   owner: (id, ownerStatus, consignPrice) =>
     unwrap(http.post(`/artworks/${id}/owner`, null, { params: { ownerStatus, consignPrice } })),
   remove: (id) => unwrap(http.delete(`/artworks/${id}`))
+}
+
+/** 烧成履历凭证：当前版 / 历史版 / 来源核对 / 签发 / 更正追加 */
+export const certificateApi = {
+  view: (artworkId) => unwrap(http.get(`/artworks/${artworkId}/certificates`)),
+  precheck: (artworkId) => unwrap(http.get(`/artworks/${artworkId}/certificates/precheck`)),
+  current: (artworkId) => unwrap(http.get(`/artworks/${artworkId}/certificates/current`)),
+  version: (artworkId, certificateId) =>
+    unwrap(http.get(`/artworks/${artworkId}/certificates/versions/${certificateId}`)),
+  issue: (artworkId, issuedBy) =>
+    unwrap(http.post(`/artworks/${artworkId}/certificates/issue`, null, { params: { issuedBy } })),
+  correct: (artworkId, expectedVersionNo, issuedBy, changeReason) =>
+    unwrap(http.post(`/artworks/${artworkId}/certificates/versions`, null, {
+      params: { expectedVersionNo, issuedBy, changeReason }
+    }))
 }
 
 export default http

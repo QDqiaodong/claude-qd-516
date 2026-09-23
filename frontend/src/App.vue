@@ -1,6 +1,6 @@
 <template>
   <div>
-    <header class="studio-header">
+    <header v-if="!isPlain" class="studio-header">
       <div class="studio-brand">
         <span class="studio-brand-mark">陶</span>
         <span>
@@ -24,17 +24,21 @@
       </nav>
     </header>
 
-    <main class="studio-page">
+    <main class="studio-page" :class="{ 'studio-page-plain': isPlain }">
       <router-view />
     </main>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
+
+// 凭证打印页是纯净页：不显示系统导航，打印时整页即凭证
+const isPlain = computed(() => route.meta?.plain === true)
 
 const modules = [
   { path: '/materials', name: '泥料釉料台账', sub: '种类 · 存量 · 收缩率' },

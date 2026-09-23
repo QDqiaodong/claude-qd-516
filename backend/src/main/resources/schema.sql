@@ -3,6 +3,7 @@
 
 SET NAMES utf8mb4;
 
+DROP TABLE IF EXISTS firing_certificate;
 DROP TABLE IF EXISTS artwork;
 DROP TABLE IF EXISTS course;
 DROP TABLE IF EXISTS firing_batch;
@@ -144,6 +145,62 @@ CREATE TABLE artwork (
   UNIQUE KEY uk_aw_code (code)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '学员作品';
 
+-- ---------- 烧成履历凭证（签发快照，只追加不覆盖；每个作品仅一条 CURRENT） ----------
+CREATE TABLE firing_certificate (
+  id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+  artwork_id          BIGINT       NOT NULL COMMENT '所属作品',
+  version_no          INT          NOT NULL COMMENT '凭证版本号，从 1 递增',
+  status              VARCHAR(16)  NOT NULL DEFAULT 'CURRENT' COMMENT 'CURRENT 当前版 / SUPERSEDED 历史版',
+  certificate_no      VARCHAR(40)  NOT NULL COMMENT '凭证编号（作品编号-V版本号）',
+  issued_by           VARCHAR(32)  NOT NULL COMMENT '签发/更正工作人员',
+  issued_at           DATETIME     NOT NULL COMMENT '签发时间',
+  change_reason       VARCHAR(255) NULL COMMENT '更正原因（V1 首签为空）',
+  -- 签发时的作品快照
+  snap_artwork_code   VARCHAR(32)  NOT NULL COMMENT '作品编号快照',
+  snap_title          VARCHAR(64)  NOT NULL COMMENT '作品名称快照',
+  snap_student_name   VARCHAR(32)  NOT NULL COMMENT '学员姓名快照',
+  snap_owner_status   VARCHAR(16)  NOT NULL COMMENT '作品归属快照',
+  -- 课程快照
+  snap_course_id      BIGINT       NULL,
+  snap_course_code    VARCHAR(32)  NULL COMMENT '课程编号快照',
+  snap_course_title   VARCHAR(64)  NULL COMMENT '课程名称快照',
+  snap_teacher        VARCHAR(32)  NULL COMMENT '授课老师快照',
+  -- 来源坯体快照
+  snap_greenware_id   BIGINT       NULL,
+  snap_greenware_code VARCHAR(32)  NULL COMMENT '坯体编号快照',
+  snap_greenware_name VARCHAR(64)  NULL COMMENT '坯体名称快照',
+  snap_greenware_stage VARCHAR(20) NULL COMMENT '坯体阶段快照',
+  snap_shaped_at      DATETIME     NULL COMMENT '成型时间快照',
+  -- 泥料 / 釉料快照
+  snap_clay_id        BIGINT       NULL,
+  snap_clay_code      VARCHAR(32)  NULL COMMENT '泥料编号快照',
+  snap_clay_name      VARCHAR(64)  NULL COMMENT '泥料名称快照',
+  snap_clay_temp      INT          NULL COMMENT '泥料建议烧成温度快照',
+  snap_glaze_id       BIGINT       NULL,
+  snap_glaze_code     VARCHAR(32)  NULL COMMENT '釉料编号快照（未施釉为 NULL）',
+  snap_glaze_name     VARCHAR(64)  NULL COMMENT '釉料名称快照',
+  snap_glaze_temp     INT          NULL COMMENT '釉料建议烧成温度快照',
+  -- 烧成批次 / 窑炉快照
+  snap_batch_id       BIGINT       NULL,
+  snap_batch_no       VARCHAR(32)  NULL COMMENT '烧成批次号快照',
+  snap_fire_type      VARCHAR(16)  NULL COMMENT 'BISQUE 素烧 / GLAZE 釉烧 快照',
+  snap_target_temp    INT          NULL COMMENT '目标温度快照 ℃',
+  snap_peak_temp      INT          NULL COMMENT '实际峰值温度快照 ℃',
+  snap_kiln_id        BIGINT       NULL,
+  snap_kiln_code      VARCHAR(32)  NULL COMMENT '窑炉编号快照',
+  snap_kiln_name      VARCHAR(64)  NULL COMMENT '窑炉名称快照',
+  snap_loaded_at      DATETIME     NULL COMMENT '装窑时间快照',
+  snap_heating_at     DATETIME     NULL COMMENT '升温时间快照',
+  snap_soaking_at     DATETIME     NULL COMMENT '保温开始时间快照',
+  snap_cooling_at     DATETIME     NULL COMMENT '冷却开始时间快照',
+  snap_out_at         DATETIME     NULL COMMENT '出窑时间快照',
+  created_at          DATETIME     NULL,
+  updated_at          DATETIME     NULL,
+  UNIQUE KEY uk_fc_no (certificate_no),
+  KEY idx_fc_artwork (artwork_id),
+  KEY idx_fc_current (artwork_id, status)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '烧成履历凭证（不可变快照版本）';
+
 -- ================= 种子数据 =================
 
 -- 材料分类树（4 层：陶土类 > 粗陶泥 > 宜兴粗陶）
@@ -196,12 +253,13 @@ INSERT INTO greenware (id, code, name, clay_id, glaze_id, area_id, stage, moistu
   (3,  'GW-0003', '细颈瓶',     3, NULL, 4,  'SHAPED',       22.00, 26.50, NULL, '2026-04-03 09:40:00', NOW(), NOW()),
   (4,  'GW-0004', '高白泥杯',   3, NULL, 4,  'DRYING',       15.60,  9.00, NULL, '2026-04-03 14:12:00', NOW(), NOW()),
   (5,  'GW-0005', '手捏小猫',   2, NULL, 5,  'BISQUE_READY',  9.80, 11.20, NULL, '2026-04-01 15:30:00', NOW(), NOW()),
-  (6,  'GW-0006', '青瓷碟',     3, 6,    7,  'BISQUED',       2.10,  3.50, 1,    '2026-03-28 10:00:00', NOW(), NOW()),
+  (6,  'GW-0006', '青瓷碟',     3, 6,    7,  'BISQUED',       2.10,  3.50, NULL, '2026-03-28 10:00:00', NOW(), NOW()),
+
   (7,  'GW-0007', '粗陶罐',     1, 7,    7,  'GLAZED',        1.50, 18.40, NULL, '2026-03-27 16:20:00', NOW(), NOW()),
   (8,  'GW-0008', '高白泥碗',   3, 6,    7,  'BISQUE_READY',  3.40,  8.20, NULL, '2026-03-29 09:15:00', NOW(), NOW()),
   (9,  'GW-0009', '粗陶杯',     2, NULL, 8,  'DRYING',       16.00,  8.80, NULL, '2026-04-04 10:45:00', NOW(), NOW()),
   (10, 'GW-0010', '特白泥盏',   4, 8,    10, 'GLAZED',        1.20,  6.30, NULL, '2026-03-26 13:10:00', NOW(), NOW()),
-  (11, 'GW-0011', '结晶釉盘',   3, 8,    10, 'BISQUED',       0.80,  2.80, 1,    '2026-03-25 11:00:00', NOW(), NOW()),
+  (11, 'GW-0011', '结晶釉盘',   3, 8,    10, 'BISQUED',       0.80,  2.80, NULL, '2026-03-25 11:00:00', NOW(), NOW()),
   (12, 'GW-0012', '青花小瓶',   1, 9,    11, 'BISQUE_READY',  8.90, 15.60, NULL, '2026-03-30 09:50:00', NOW(), NOW());
 
 -- 窑炉

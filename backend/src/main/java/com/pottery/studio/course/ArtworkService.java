@@ -2,6 +2,8 @@ package com.pottery.studio.course;
 
 import com.pottery.studio.common.BizException;
 import com.pottery.studio.common.PartialCopy;
+import com.pottery.studio.certificate.FiringCertificate;
+import com.pottery.studio.certificate.FiringCertificateRepository;
 import com.pottery.studio.firing.FiringBatch;
 import com.pottery.studio.firing.FiringBatchRepository;
 import com.pottery.studio.firing.FiringBatchService;
@@ -29,15 +31,18 @@ public class ArtworkService {
     private final CourseService courseService;
     private final GreenwareRepository greenwareRepository;
     private final FiringBatchRepository batchRepository;
+    private final FiringCertificateRepository certificateRepository;
 
     public ArtworkService(ArtworkRepository artworkRepository,
                           CourseService courseService,
                           GreenwareRepository greenwareRepository,
-                          FiringBatchRepository batchRepository) {
+                          FiringBatchRepository batchRepository,
+                          FiringCertificateRepository certificateRepository) {
         this.artworkRepository = artworkRepository;
         this.courseService = courseService;
         this.greenwareRepository = greenwareRepository;
         this.batchRepository = batchRepository;
+        this.certificateRepository = certificateRepository;
     }
 
     public static String ownerLabel(String status) {
@@ -98,7 +103,8 @@ public class ArtworkService {
     @Transactional
     public Artwork update(Long id, Artwork request) {
         Artwork exist = requireExists(id);
-        PartialCopy.apply(request, exist, "code", "courseTitle", "greenwareCode", "batchNo");
+        PartialCopy.apply(request, exist, "code", "courseTitle", "greenwareCode", "batchNo",
+                "certificateVersionNo", "certificateIssued");
         validate(exist, id);
         return decorateOne(artworkRepository.save(exist));
     }
@@ -223,8 +229,19 @@ public class ArtworkService {
             a.setCourseTitle(courseTitles.get(a.getCourseId()));
             a.setGreenwareCode(greenwareCodes.get(a.getGreenwareId()));
             a.setBatchNo(batchNos.get(a.getFiringBatchId()));
+            decorateCertificate(a);
         }
         return rows;
+    }
+
+    /** 凭证版本只做只读标记：没有凭证的作品（含升级前老作品）正常返回空标记 */
+    private void decorateCertificate(Artwork a) {
+        boolean issued = certificateRepository.existsByArtworkId(a.getId());
+        a.setCertificateIssued(issued);
+        a.setCertificateVersionNo(certificateRepository
+                .findFirstByArtworkIdAndStatusOrderByVersionNoDesc(a.getId(), FiringCertificate.CURRENT)
+                .map(FiringCertificate::getVersionNo)
+                .orElse(null));
     }
 
     private Artwork decorateOne(Artwork a) {

@@ -22,6 +22,13 @@ public class GlobalExceptionHandler {
         return ApiResult.fail(e.getMessage());
     }
 
+    /** 凭证版本已被他人更新：409，要求页面重新读取后再处理 */
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResult<Void> handleConflict(ConflictException e) {
+        return ApiResult.fail(e.getMessage());
+    }
+
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResult<Void> handleMissingParam(MissingServletRequestParameterException e) {

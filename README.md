@@ -33,6 +33,19 @@ chmod +x start.sh && docker compose up -d --build
 | 坯体与工位 | `GET /api/greenwares` |
 | 窑炉与烧成 | `GET /api/firing-batches` |
 | 课程与作品 | `GET /api/courses`、`GET /api/artworks` |
+| 烧成履历凭证 | `GET /api/artworks/{id}/certificates`（作品详情面板） |
+
+烧成履历凭证（作品详情 → 凭证版本 / 打印）：
+
+- `GET /api/artworks/{id}/certificates` —— 当前版 + 历史版 + 来源链核对 + 快照与当前数据差异
+- `GET /api/artworks/{id}/certificates/precheck` —— 签发前核对（不落库），逐段指出缺失来源 / 关联冲突
+- `GET /api/artworks/{id}/certificates/current` —— 当前版本快照
+- `GET /api/artworks/{id}/certificates/{certificateId}` —— 指定版本（含历史版）落库快照，用于打印
+- `POST /api/artworks/{id}/certificates/issue?issuedBy=` —— 首签 / 老作品补签，来源核对不通过拒绝
+- `POST /api/artworks/{id}/certificates/versions?expectedVersionNo=&issuedBy=&changeReason=` —— 更正追加新版本；版本过期返回 409
+
+凭证规则：内容为签发当时的不可变快照（作品/学员/课程/泥料/釉料/来源坯体/批次/窑炉/目标与实际温度/各阶段时间）；
+更正只追加新版本并把旧版置为 `SUPERSEDED`，不覆盖旧版；升级前无凭证的老作品照常流转，可从当前可核实数据首次补签。
 
 自关联品类树接口：
 
